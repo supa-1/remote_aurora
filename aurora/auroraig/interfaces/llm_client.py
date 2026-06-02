@@ -117,11 +117,21 @@ class ReconQwenLLMClient:
             return True
         try:
             import torch
-            from transformers import AutoModelForCausalLM, AutoTokenizer, Qwen2ForCausalLM
+            from transformers import AutoModelForCausalLM, AutoTokenizer
         except Exception as exc:
             if _env_bool("AURORAIG_LLM_LOG_LOAD_ERRORS", True):
                 print(f"[WARN] LLM import failed: {type(exc).__name__}: {exc}")
             return False
+
+        Qwen2ForCausalLM = None
+        if self.model_family == "qwen2":
+            try:
+                from transformers import Qwen2ForCausalLM as _Qwen2ForCausalLM
+
+                Qwen2ForCausalLM = _Qwen2ForCausalLM
+            except Exception as exc:
+                if _env_bool("AURORAIG_LLM_LOG_LOAD_ERRORS", True):
+                    print(f"[WARN] Qwen2ForCausalLM import failed, falling back to AutoModel: {type(exc).__name__}: {exc}")
 
         # 对齐 recon_qwen.py：优先按 Qwen2ForCausalLM 显式加载。
         dtype = torch.float16 if torch.cuda.is_available() else torch.float32
@@ -153,7 +163,7 @@ class ReconQwenLLMClient:
         else:
             model_kwargs["torch_dtype"] = dtype
 
-        if self.model_family == "qwen2":
+        if self.model_family == "qwen2" and Qwen2ForCausalLM is not None:
             try:
                 self._model = Qwen2ForCausalLM.from_pretrained(
                     self.model_name_or_path,
