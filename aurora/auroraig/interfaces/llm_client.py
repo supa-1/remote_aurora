@@ -64,6 +64,7 @@ class ReconQwenLLMClient:
     enable_non_neighbor_rule_filter: bool = False
     enable_spatial_vocab_filter_only: bool = False
     enable_subject_object_vocab_count_filter_only: bool = False
+    disable_thinking: bool = True
     log_generation_errors: bool = True
     max_logged_generation_errors: int = 12
 
@@ -98,6 +99,7 @@ class ReconQwenLLMClient:
             enable_subject_object_vocab_count_filter_only=_env_bool(
                 "AURORAIG_LLM_ENABLE_SUBJECT_OBJECT_VOCAB_COUNT_FILTER_ONLY", False
             ),
+            disable_thinking=_env_bool("AURORAIG_LLM_DISABLE_THINKING", True),
         )
 
     @staticmethod
@@ -460,15 +462,22 @@ class ReconQwenLLMClient:
 
         import torch
 
+        generation_prompt = self._with_no_think(prompt)
         if hasattr(self._tokenizer, "apply_chat_template"):
-            messages = [{"role": "user", "content": prompt}]
-            input_ids = self._tokenizer.apply_chat_template(
-                messages,
-                add_generation_prompt=True,
-                return_tensors="pt",
-            )
+            messages = [{"role": "user", "content": generation_prompt}]
+            chat_kwargs = {
+                "add_generation_prompt": True,
+                "return_tensors": "pt",
+            }
+            if self.disable_thinking:
+                chat_kwargs["enable_thinking"] = False
+            try:
+                input_ids = self._tokenizer.apply_chat_template(messages, **chat_kwargs)
+            except TypeError:
+                chat_kwargs.pop("enable_thinking", None)
+                input_ids = self._tokenizer.apply_chat_template(messages, **chat_kwargs)
         else:
-            encoded = self._tokenizer(prompt, return_tensors="pt")
+            encoded = self._tokenizer(generation_prompt, return_tensors="pt")
             input_ids = encoded["input_ids"]
 
         input_ids = input_ids.to(self._model.device)
@@ -498,10 +507,20 @@ class ReconQwenLLMClient:
         gen_ids = outputs[:, input_ids.shape[-1]:]
         return self._tokenizer.batch_decode(gen_ids, skip_special_tokens=True)[0]
 
+    def _with_no_think(self, prompt: str) -> str:
+        if not self.disable_thinking:
+            return prompt
+        if self.model_family != "qwen3":
+            return prompt
+        if "/no_think" in prompt.lower():
+            return prompt
+        return f"{prompt.rstrip()}\n/no_think"
+
     @staticmethod
     def _extract_rewrite_lines(gen_text: str) -> List[str]:
+        gen_text = ReconQwenLLMClient._strip_thinking_text(gen_text)
         lines = [
-            line.strip().lstrip("- ").strip()
+            ReconQwenLLMClient._clean_rewrite_line(line)
             for line in gen_text.splitlines()
             if line.strip()
         ]
@@ -509,9 +528,70 @@ class ReconQwenLLMClient:
         for line in lines:
             # 兜底清理：去掉常见前缀，尽量保留纯句子。
             line = re.sub(r"^(output\s*:\s*|rewritten\s*:\s*)", "", line, flags=re.IGNORECASE).strip()
-            if line:
+            if line and not ReconQwenLLMClient._looks_like_reasoning(line):
                 out.append(line)
         return out
+
+    @staticmethod
+    def _strip_thinking_text(text: str) -> str:
+        text = re.sub(r"(?is)<think>.*?</think>", "\n", text)
+        if "</think>" in text.lower():
+            text = re.split(r"(?i)</think>", text)[-1]
+        return re.sub(r"(?im)^\s*</?think>\s*$", "", text)
+
+    @staticmethod
+    def _clean_rewrite_line(line: str) -> str:
+        line = line.strip()
+        line = re.sub(r"^\s*(?:[-*]|\d+[\).])\s*", "", line).strip()
+        line = re.sub(
+            r"^\s*(?:answer|final|output|rewrite|rewritten)\s*[:：]\s*",
+            "",
+            line,
+            flags=re.IGNORECASE,
+        )
+        return line.strip().strip("\"'` ")
+
+    @staticmethod
+    def _looks_like_reasoning(line: str) -> bool:
+        lowered = line.strip().lower()
+        if not lowered:
+            return True
+        if "<think" in lowered or "</think" in lowered:
+            return True
+        bad_prefixes = (
+            "okay",
+            "ok,",
+            "let's",
+            "first,",
+            "first ",
+            "the user",
+            "i need",
+            "i should",
+            "let me",
+            "we need",
+            "we should",
+            "so,",
+            "therefore",
+            "analysis",
+            "final answer",
+            "the original",
+            "the sentence",
+            "the input",
+            "since ",
+            "because ",
+        )
+        if lowered.startswith(bad_prefixes):
+            return True
+        bad_fragments = (
+            "the task",
+            "the instruction",
+            "the rules",
+            "the user wants",
+            "i will",
+            "i'll",
+            "need to make sure",
+        )
+        return any(fragment in lowered for fragment in bad_fragments)
 
     @staticmethod
     def _normalize_rewrite(candidate: str, origin: str) -> str:

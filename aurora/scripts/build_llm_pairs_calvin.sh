@@ -76,8 +76,9 @@ fi
 export AURORAIG_LLM_OFFLOAD_BUFFERS="${AURORAIG_LLM_OFFLOAD_BUFFERS:-0}"
 export AURORAIG_LLM_TEMPERATURE="${AURORAIG_LLM_TEMPERATURE:-0}"
 export AURORAIG_LLM_TOP_P="${AURORAIG_LLM_TOP_P:-1.0}"
-export AURORAIG_LLM_MAX_NEW_TOKENS="${AURORAIG_LLM_MAX_NEW_TOKENS:-96}"
+export AURORAIG_LLM_MAX_NEW_TOKENS="${AURORAIG_LLM_MAX_NEW_TOKENS:-128}"
 export AURORAIG_LLM_ATTN_IMPLEMENTATION="${AURORAIG_LLM_ATTN_IMPLEMENTATION:-eager}"
+export AURORAIG_LLM_DISABLE_THINKING="${AURORAIG_LLM_DISABLE_THINKING:-1}"
 export AURORAIG_LLM_ENABLE_SPATIAL_VOCAB_FILTER_ONLY="${AURORAIG_LLM_ENABLE_SPATIAL_VOCAB_FILTER_ONLY:-1}"
 export AURORAIG_LLM_ENABLE_SUBJECT_OBJECT_VOCAB_COUNT_FILTER_ONLY="${AURORAIG_LLM_ENABLE_SUBJECT_OBJECT_VOCAB_COUNT_FILTER_ONLY:-1}"
 export AURORAIG_LLM_ENABLE_NON_NEIGHBOR_RULE_FILTER="${AURORAIG_LLM_ENABLE_NON_NEIGHBOR_RULE_FILTER:-1}"
@@ -99,6 +100,7 @@ echo "[INFO] 4bit: $AURORAIG_LLM_LOAD_IN_4BIT (${AURORAIG_LLM_BNB_4BIT_COMPUTE_D
 echo "[INFO] deterministic: temperature=$AURORAIG_LLM_TEMPERATURE top_p=$AURORAIG_LLM_TOP_P"
 echo "[INFO] max_new_tokens: $AURORAIG_LLM_MAX_NEW_TOKENS"
 echo "[INFO] llm_attn: $AURORAIG_LLM_ATTN_IMPLEMENTATION"
+echo "[INFO] disable_thinking: $AURORAIG_LLM_DISABLE_THINKING"
 echo "[INFO] offload_buffers: $AURORAIG_LLM_OFFLOAD_BUFFERS"
 echo "[INFO] filters: spatial_only=$AURORAIG_LLM_ENABLE_SPATIAL_VOCAB_FILTER_ONLY subject_object_count=$AURORAIG_LLM_ENABLE_SUBJECT_OBJECT_VOCAB_COUNT_FILTER_ONLY non_neighbor=$AURORAIG_LLM_ENABLE_NON_NEIGHBOR_RULE_FILTER neighbor=$AURORAIG_LLM_ENABLE_NEIGHBOR_RULE_FILTER"
 echo "[INFO] PYTHONPATH includes: $PROJECT_ROOT"
@@ -117,6 +119,28 @@ request = RewriteRequest(
 )
 rewrites = client.rewrite_instruction_with_types(request)
 print("[INFO] LLM smoke rewrites:", [(x.text, x.negative_type) for x in rewrites])
+bad_markers = (
+    "<think",
+    "</think",
+    "okay",
+    "let's",
+    "first,",
+    "the user",
+    "i need",
+    "let me",
+    "the task",
+    "the instruction",
+)
+bad_rewrites = [
+    x.text
+    for x in rewrites
+    if any(marker in x.text.lower() for marker in bad_markers)
+]
+if bad_rewrites:
+    raise SystemExit(
+        "LLM smoke test returned reasoning/explanatory text instead of rewritten instructions: "
+        + repr(bad_rewrites[:3])
+    )
 if not rewrites:
     print("[INFO] LLM smoke diagnostics:")
     print("  client:", type(client).__name__)
