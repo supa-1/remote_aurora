@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--image_root", default="", help="图像根目录（用于 YOLO 检测邻近物体）")
     p.add_argument("--enable_yolo_neighbors", action="store_true", help="启用 YOLO 自动提取邻近物体")
-    p.add_argument("--yolo_model_path", default="/home/supa1/myreconvla/Reconvla/reconvla/scripts/helper/best.pt")
+    p.add_argument("--yolo_model_path", default="../ReconVLA/reconvla/scripts/helper/best.pt")
     p.add_argument("--yolo_conf", type=float, default=0.25)
     p.add_argument("--yolo_device", default="0")
     p.add_argument("--enable_neighbor_rule_filter", action="store_true", help="开启邻近物体规则过滤（默认关闭）")

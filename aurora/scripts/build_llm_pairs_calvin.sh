@@ -15,7 +15,7 @@ IMAGE_ROOT="${IMAGE_ROOT:-$PROJECT_ROOT/data/processed_images/calvin_debug_datas
 MAX_LLM_NEGATIVES="${MAX_LLM_NEGATIVES:-6}"
 MAX_RULE_NEGATIVES="${MAX_RULE_NEGATIVES:-0}"
 MIN_PAIRS="${MIN_PAIRS:-100}"
-YOLO_MODEL_PATH="${YOLO_MODEL_PATH:-/home/supa1/myreconvla/Reconvla/reconvla/scripts/helper/best.pt}"
+YOLO_MODEL_PATH="${YOLO_MODEL_PATH:-$PROJECT_ROOT/../ReconVLA/reconvla/scripts/helper/best.pt}"
 YOLO_CONF="${YOLO_CONF:-0.25}"
 YOLO_DEVICE="${YOLO_DEVICE:-0}"
 

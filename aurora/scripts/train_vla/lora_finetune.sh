@@ -17,7 +17,7 @@ export DATA_SEED="${DATA_SEED:-$SEED}"
 
 AURORAIG_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 RECONVLA_ROOT="${RECONVLA_ROOT:-$AURORAIG_ROOT/reconvla}"
-ASSET_ROOT="${ASSET_ROOT:-$AURORAIG_ROOT/../Reconvla/reconvla}"
+ASSET_ROOT="${ASSET_ROOT:-$AURORAIG_ROOT/../ReconVLA/reconvla}"
 
 export PYTHONPATH="$RECONVLA_ROOT:$AURORAIG_ROOT:${PYTHONPATH:-}"
 PYTHON_BIN="${PYTHON_BIN:-/home/supa1/miniconda3/envs/reconvla/bin/python}"

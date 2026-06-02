@@ -3,9 +3,10 @@ set -euo pipefail
 
 AURORAIG_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 RECONVLA_ROOT="${RECONVLA_ROOT:-$AURORAIG_ROOT/reconvla}"
-ASSET_ROOT="${ASSET_ROOT:-$AURORAIG_ROOT/../Reconvla/reconvla}"
+ASSET_ROOT="${ASSET_ROOT:-$AURORAIG_ROOT/../ReconVLA/reconvla}"
 
 MODEL_NAME_OR_PATH="${MODEL_NAME_OR_PATH:-$ASSET_ROOT/checkpoints/pretrain-checkpoint-10388}"
+VISION_TOWER="${VISION_TOWER:-$ASSET_ROOT/siglip-so400m-patch14-384}"
 MM_PIXEL_DECODER="${MM_PIXEL_DECODER:-$ASSET_ROOT/pretrained_vae/vae}"
 DATA_PATH="${DATA_PATH:-$HOME/myreconvla/calvin/dataset/calvin_debug_dataset_processed_json/training_r5.json}"
 IMAGE_FOLDER="${IMAGE_FOLDER:-$HOME/myreconvla/calvin/dataset/processed_images/calvin_debug_dataset/vla_processed_r5}"
@@ -24,6 +25,7 @@ check_path() {
 
 check_path "$RECONVLA_ROOT/train_vla.py" "train_vla.py"
 check_path "$MODEL_NAME_OR_PATH" "MODEL_NAME_OR_PATH"
+check_path "$VISION_TOWER" "VISION_TOWER"
 check_path "$MM_PIXEL_DECODER" "MM_PIXEL_DECODER"
 check_path "$DATA_PATH" "DATA_PATH"
 check_path "$IMAGE_FOLDER" "IMAGE_FOLDER"

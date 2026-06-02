@@ -13,7 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from auroraig.data.yolo_neighbor_detector import YOLONeighborDetector
 
 
-DEFAULT_MODEL_PATH = "/home/supa1/myreconvla/Reconvla/reconvla/scripts/helper/best.pt"
+DEFAULT_MODEL_PATH = "../ReconVLA/reconvla/scripts/helper/best.pt"
 DEFAULT_IMAGE_ROOT = "/home/supa1/myreconvla/AuroraIG/data/processed_images/calvin_debug_dataset/vla_processed_r5"
 
 
