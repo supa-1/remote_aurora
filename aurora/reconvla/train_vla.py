@@ -1532,8 +1532,11 @@ def make_supervised_data_module(tokenizer: transformers.PreTrainedTokenizer,
                 eval_dataset=None,
                 data_collator=data_collator)
 
-def train(attn_implementation="sdpa"):
+def train(attn_implementation=None):
     global local_rank, action_to_lang, robot_obs_lang
+
+    if attn_implementation is None:
+        attn_implementation = os.getenv("ATTN_IMPLEMENTATION", "eager").strip() or "eager"
 
     parser = transformers.HfArgumentParser(
         (ModelArguments, DataArguments, TrainingArguments))
