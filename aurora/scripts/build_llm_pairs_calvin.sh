@@ -111,6 +111,39 @@ request = RewriteRequest(
 rewrites = client.rewrite_instruction_with_types(request)
 print("[INFO] LLM smoke rewrites:", [(x.text, x.negative_type) for x in rewrites])
 if not rewrites:
+    print("[INFO] LLM smoke diagnostics:")
+    print("  client:", type(client).__name__)
+    print("  enabled:", getattr(client, "enabled", lambda: False)())
+    print("  model_path:", getattr(client, "model_name_or_path", ""))
+    print("  model_family:", getattr(client, "model_family", ""))
+    print("  device:", getattr(client, "device", ""))
+    try:
+        loaded = client._lazy_load()
+        print("  lazy_load:", loaded)
+    except Exception as exc:
+        print("  lazy_load_error:", type(exc).__name__, exc)
+        loaded = False
+    if loaded:
+        prompts = client._build_rule_prompts_with_types(request)[:6]
+        for rule_type, prompt in prompts:
+            try:
+                raw = client._generate_text(prompt)
+                extracted = client._extract_rewrite_lines(raw)
+                normalized = [
+                    client._normalize_rewrite(x, request.instruction)
+                    for x in extracted
+                ]
+                valid = [
+                    x for x in normalized
+                    if x and client._is_valid_for_rule(rule_type, request.instruction, x, ["drawer", "slider"])
+                ]
+                print(f"  rule={rule_type}")
+                print(f"    raw={raw!r}")
+                print(f"    extracted={extracted!r}")
+                print(f"    normalized={normalized!r}")
+                print(f"    valid={valid!r}")
+            except Exception as exc:
+                print(f"  rule={rule_type} error={type(exc).__name__}: {exc}")
     raise SystemExit(
         "LLM smoke test returned no rewrites. Check Qwen path/family, CUDA memory, or filters before full generation."
     )

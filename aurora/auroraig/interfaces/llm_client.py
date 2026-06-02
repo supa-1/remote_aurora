@@ -118,7 +118,9 @@ class ReconQwenLLMClient:
         try:
             import torch
             from transformers import AutoModelForCausalLM, AutoTokenizer, Qwen2ForCausalLM
-        except Exception:
+        except Exception as exc:
+            if _env_bool("AURORAIG_LLM_LOG_LOAD_ERRORS", True):
+                print(f"[WARN] LLM import failed: {type(exc).__name__}: {exc}")
             return False
 
         # 对齐 recon_qwen.py：优先按 Qwen2ForCausalLM 显式加载。
