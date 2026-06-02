@@ -24,8 +24,13 @@ DATA_ROOT="${DATA_ROOT:-$AURORAIG_ROOT/../calvin/dataset/process/$DATASET_NAME}"
 export PYTHONPATH="$RECONVLA_ROOT:$AURORAIG_ROOT:${PYTHONPATH:-}"
 PYTHON_BIN="${PYTHON_BIN:-python}"
 
-if [[ ! -x "$PYTHON_BIN" ]]; then
-    echo "[ERROR] python not executable: $PYTHON_BIN" >&2
+if [[ "$PYTHON_BIN" == */* ]]; then
+    if [[ ! -x "$PYTHON_BIN" ]]; then
+        echo "[ERROR] python not executable: $PYTHON_BIN" >&2
+        exit 1
+    fi
+elif ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+    echo "[ERROR] python not found on PATH: $PYTHON_BIN" >&2
     exit 1
 fi
 
