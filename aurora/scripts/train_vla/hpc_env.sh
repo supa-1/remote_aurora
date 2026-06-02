@@ -21,4 +21,21 @@ setup_hpc_env() {
             conda activate "$env_name"
         fi
     fi
+
+    # On the ARM A100 server, sklearn may load its bundled libgomp too late and
+    # fail with "cannot allocate memory in static TLS block". Preload libgomp
+    # before Python starts so transformers.trainer can import sklearn safely.
+    local libgomp_path=""
+    if [[ -n "${CONDA_PREFIX:-}" && -f "$CONDA_PREFIX/lib/libgomp.so.1" ]]; then
+        libgomp_path="$CONDA_PREFIX/lib/libgomp.so.1"
+    elif [[ -n "${CONDA_PREFIX:-}" ]]; then
+        libgomp_path="$(find "$CONDA_PREFIX/lib/python"*"/site-packages/scikit_learn.libs" -name 'libgomp*.so*' 2>/dev/null | head -n 1 || true)"
+    fi
+
+    if [[ -n "$libgomp_path" && -f "$libgomp_path" ]]; then
+        case ":${LD_PRELOAD:-}:" in
+            *":$libgomp_path:"*) ;;
+            *) export LD_PRELOAD="$libgomp_path${LD_PRELOAD:+:$LD_PRELOAD}" ;;
+        esac
+    fi
 }
