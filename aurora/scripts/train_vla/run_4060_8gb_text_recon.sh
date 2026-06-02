@@ -19,7 +19,8 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 DEFAULT_MODEL="$ROOT_DIR/../ReconVLA/reconvla/checkpoints/pretrain-checkpoint-10388"
-DEFAULT_DATA="$HOME/myreconvla/calvin/dataset/calvin_debug_dataset_processed_json/training_r5.json"
+DATA_ROOT="${DATA_ROOT:-$ROOT_DIR/../calvin/process/calvin_debug_dataset}"
+DEFAULT_DATA="$DATA_ROOT/processed_json/training_r5.json"
 
 RUN_NAME="${RUN_NAME:-4060_text_recon_$(date +%Y%m%d_%H%M%S)}"
 

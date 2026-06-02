@@ -5,13 +5,15 @@ set -euo pipefail
 # both training and validation splits from processed CALVIN JSON.
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MODEL_PATH_DEFAULT="/home/supa1/myreconvla/AuroraIG/models/use/Qwen3-4B-Instruct-2507"
-PYTHON_BIN="${PYTHON_BIN:-/home/supa1/miniconda3/envs/activegaze/bin/python}"
+MODEL_PATH_DEFAULT="$PROJECT_ROOT/models/qwen-8b"
+# Run this script from the server's aurora environment. Override PYTHON_BIN if needed.
+PYTHON_BIN="${PYTHON_BIN:-python}"
 
 MODEL_PATH="${AURORAIG_LLM_MODEL_PATH:-$MODEL_PATH_DEFAULT}"
-JSON_ROOT="${1:-$PROJECT_ROOT/data/processed_json/calvin_debug_dataset}"
+DATA_ROOT="${DATA_ROOT:-$PROJECT_ROOT/../calvin/process/calvin_debug_dataset}"
+JSON_ROOT="${1:-$DATA_ROOT/processed_json}"
 OUT_ROOT="${2:-$PROJECT_ROOT/data/consistency_pairs/calvin_debug_dataset}"
-IMAGE_ROOT="${IMAGE_ROOT:-$PROJECT_ROOT/data/processed_images/calvin_debug_dataset/vla_processed_r5}"
+IMAGE_ROOT="${IMAGE_ROOT:-$DATA_ROOT/processed_images/vla_processed_r5}"
 MAX_LLM_NEGATIVES="${MAX_LLM_NEGATIVES:-6}"
 MAX_RULE_NEGATIVES="${MAX_RULE_NEGATIVES:-0}"
 MIN_PAIRS="${MIN_PAIRS:-100}"

@@ -16,9 +16,10 @@ export DATA_SEED="${DATA_SEED:-$SEED}"
 AURORAIG_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 RECONVLA_ROOT="${RECONVLA_ROOT:-$AURORAIG_ROOT/reconvla}"
 ASSET_ROOT="${ASSET_ROOT:-$AURORAIG_ROOT/../ReconVLA/reconvla}"
+DATA_ROOT="${DATA_ROOT:-$AURORAIG_ROOT/../calvin/process/calvin_debug_dataset}"
 
 export PYTHONPATH="$RECONVLA_ROOT:$AURORAIG_ROOT:${PYTHONPATH:-}"
-PYTHON_BIN="${PYTHON_BIN:-/home/supa1/miniconda3/envs/reconvla/bin/python}"
+PYTHON_BIN="${PYTHON_BIN:-python}"
 
 if [[ ! -x "$PYTHON_BIN" ]]; then
     echo "[ERROR] python not executable: $PYTHON_BIN" >&2
@@ -39,9 +40,9 @@ MAX_STEPS_ARG=${MAX_STEPS:+--max_steps ${MAX_STEPS}}
     --version "$MODEL_VERSION" \
     --mm_pixel_decoder "${MM_PIXEL_DECODER:-$ASSET_ROOT/pretrained_vae/vae}" \
     --reconstruct_image_num "${RECONSTRUCT_IMAGE_NUM:-1}" \
-    --data_path "${DATA_PATH:-$HOME/myreconvla/calvin/dataset/calvin_debug_dataset_processed_json/training_r5.json}" \
-    --image_folder "${IMAGE_FOLDER:-$HOME/myreconvla/calvin/dataset/processed_images/calvin_debug_dataset/vla_processed_r5}" \
-    --target_image_folder "${TARGET_IMAGE_FOLDER:-$HOME/myreconvla/calvin/dataset/processed_images/calvin_debug_dataset/vla_processed_r5}" \
+    --data_path "${DATA_PATH:-$DATA_ROOT/processed_json/training_r5.json}" \
+    --image_folder "${IMAGE_FOLDER:-$DATA_ROOT/processed_images/vla_processed_r5}" \
+    --target_image_folder "${TARGET_IMAGE_FOLDER:-$DATA_ROOT/processed_images/vla_processed_r5}" \
     --action_stat "${ACTION_STAT:-$RECONVLA_ROOT/statistics.yaml}" \
     --mm_projector_type "${MM_PROJECTOR_TYPE:-mlp2x_gelu}" \
     --mm_inv_projector_type "${MM_INV_PROJECTOR_TYPE:-denoiser_vit3x}" \
