@@ -4,6 +4,7 @@ from collections import Counter
 from dataclasses import dataclass
 import os
 import re
+import sys
 from typing import Any, List, Optional, Protocol, Tuple
 
 from auroraig.data.schemas import TypedRewrite
@@ -118,6 +119,7 @@ class ReconQwenLLMClient:
         try:
             import torch
             from transformers import AutoModelForCausalLM, AutoTokenizer
+            self._disable_transformers_flash_attention_for_generation()
         except Exception as exc:
             if _env_bool("AURORAIG_LLM_LOG_LOAD_ERRORS", True):
                 print(f"[WARN] LLM import failed: {type(exc).__name__}: {exc}")
@@ -143,6 +145,7 @@ class ReconQwenLLMClient:
         model_kwargs = {
             "device_map": self.device,
             "offload_buffers": self.offload_buffers,
+            "attn_implementation": os.getenv("AURORAIG_LLM_ATTN_IMPLEMENTATION", "eager").strip() or "eager",
         }
 
         # 仅在显式开启时启用 4bit；默认路径保持原有行为。
@@ -188,6 +191,36 @@ class ReconQwenLLMClient:
             return False
         self._model.eval()
         return True
+
+    @staticmethod
+    def _disable_transformers_flash_attention_for_generation() -> None:
+        """Force Qwen generation to avoid broken flash-attn imports.
+
+        The ARM aurora environment can have flash-attn installed without triton.
+        Transformers then tries to import Qwen3's flash-attn helpers and fails
+        before the model can fall back to eager attention. Generation does not
+        need flash-attn, so disable the cached availability flags before
+        AutoModel resolves the Qwen3 modeling module.
+        """
+        try:
+            import transformers.utils.import_utils as import_utils
+        except Exception:
+            return
+
+        for name in (
+            "_flash_attn_2_available",
+            "_flash_attn_available",
+            "_flash_attn_3_available",
+        ):
+            if hasattr(import_utils, name):
+                try:
+                    setattr(import_utils, name, False)
+                except Exception:
+                    pass
+
+        for module_name in list(sys.modules):
+            if module_name.startswith("flash_attn"):
+                sys.modules.pop(module_name, None)
 
     def rewrite_instruction(self, request: RewriteRequest) -> List[str]:
         return [x.text for x in self.rewrite_instruction_with_types(request)]
