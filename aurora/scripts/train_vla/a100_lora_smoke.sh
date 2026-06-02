@@ -28,5 +28,8 @@ export ENABLE_CONSISTENCY_AUX="${ENABLE_CONSISTENCY_AUX:-False}"
 export RECONSTRUCT_IMAGE_NUM="${RECONSTRUCT_IMAGE_NUM:-1}"
 
 cd "$AURORAIG_ROOT"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/hpc_env.sh"
+setup_hpc_env "$CONDA_ENV"
 bash scripts/train_vla/preflight_check.sh
 bash scripts/train_vla/lora_finetune.sh

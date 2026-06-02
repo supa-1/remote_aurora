@@ -5,7 +5,10 @@ set -euo pipefail
 # 用法：
 #   bash scripts/train_vla/full_finetune.sh
 
-source ~/miniconda3/bin/activate "${CONDA_ENV:-reconvla}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/hpc_env.sh"
+setup_hpc_env "${CONDA_ENV:-reconvla}"
 
 export TOKENIZERS_PARALLELISM=false
 export WANDB_MODE="${WANDB_MODE:-offline}"
@@ -13,7 +16,7 @@ export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 export SEED="${SEED:-42}"
 export DATA_SEED="${DATA_SEED:-$SEED}"
 
-AURORAIG_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+AURORAIG_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 RECONVLA_ROOT="${RECONVLA_ROOT:-$AURORAIG_ROOT/reconvla}"
 ASSET_ROOT="${ASSET_ROOT:-$AURORAIG_ROOT/../ReconVLA/reconvla}"
 DATASET_NAME="${DATASET_NAME:-calvin_debug_dataset}"
