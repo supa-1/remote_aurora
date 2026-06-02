@@ -1,0 +1,83 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Env / logs / outputs
+.env
+*.log
+wandb/
+runs/
+outputs/
+output/
+results/
+tmp/
+temp/
+
+# HuggingFace / model caches
+.cache/
+**/.cache/
+huggingface/
+**/huggingface/
+hub/
+**/hub/
+
+# Model weights
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.gguf
+*.msgpack
+*.h5
+*.pb
+*.tflite
+
+# Checkpoints / pretrained assets
+checkpoints/
+**/checkpoints/
+checkpoint-*/
+**/checkpoint-*/
+pretrain-checkpoint-*/
+**/pretrain-checkpoint-*/
+
+pretrained_vae/
+**/pretrained_vae/
+siglip-so400m-patch14-384/
+**/siglip-so400m-patch14-384/
+models/use/
+**/models/use/
+
+# Reconvla / AuroraIG common large outputs
+**/pretrained_vae/vae/
+**/vae_singlefile_backup*/
+**/Qwen*/
+**/qwen*/
+**/SigLIP*/
+**/siglip*/
+**/clip*/
+**/CLIP*/
+
+# Datasets and processed images
+calvin/dataset/
+**/calvin/dataset/
+**/processed_images/
+**/processed_json/
+**/final_json/
+**/consistency_pairs/
+**/*.jsonl
+
+# Optional: large archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7zcalvin/

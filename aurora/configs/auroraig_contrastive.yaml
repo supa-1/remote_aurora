@@ -1,0 +1,16 @@
+seed: 42
+rewriter:
+  enable_rule_rewrite: true
+  enable_llm_rewrite: true
+  max_rule_negatives: 4
+  max_llm_negatives: 4
+contrastive:
+  encoder_name: openai/clip-vit-base-patch32
+  image_size: 224
+  train_batch_size: 32
+  eval_batch_size: 64
+  learning_rate: 1e-5
+  weight_decay: 0.01
+  epochs: 3
+  temperature: 0.07
+  max_text_length: 64
