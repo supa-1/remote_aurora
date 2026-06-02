@@ -8,6 +8,7 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MODEL_PATH_DEFAULT="$PROJECT_ROOT/models/qwen-8b"
 # Run this script from the server's aurora environment. Override PYTHON_BIN if needed.
 PYTHON_BIN="${PYTHON_BIN:-python}"
+export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-1}"
 
 MODEL_PATH="${AURORAIG_LLM_MODEL_PATH:-$MODEL_PATH_DEFAULT}"
 DATASET_NAME="${DATASET_NAME:-calvin_debug_dataset}"
@@ -16,8 +17,9 @@ JSON_ROOT="${1:-$DATA_ROOT/processed_json}"
 OUT_ROOT="${2:-$DATA_ROOT/consistency_pairs}"
 IMAGE_ROOT="${IMAGE_ROOT:-$DATA_ROOT/processed_images/vla_processed_r5}"
 MAX_LLM_NEGATIVES="${MAX_LLM_NEGATIVES:-6}"
-MAX_RULE_NEGATIVES="${MAX_RULE_NEGATIVES:-0}"
+MAX_RULE_NEGATIVES="${MAX_RULE_NEGATIVES:-2}"
 MIN_PAIRS="${MIN_PAIRS:-100}"
+DISABLE_RULE_FALLBACK_WHEN_LLM_EMPTY="${DISABLE_RULE_FALLBACK_WHEN_LLM_EMPTY:-0}"
 YOLO_MODEL_PATH="${YOLO_MODEL_PATH:-$PROJECT_ROOT/../ReconVLA/reconvla/scripts/helper/best.pt}"
 YOLO_CONF="${YOLO_CONF:-0.25}"
 YOLO_DEVICE="${YOLO_DEVICE:-0}"
@@ -86,6 +88,7 @@ echo "[INFO] max_rule_negatives: $MAX_RULE_NEGATIVES"
 echo "[INFO] min_pairs: $MIN_PAIRS"
 echo "[INFO] python_bin: $PYTHON_BIN"
 echo "[INFO] yolo: $YOLO_MODEL_PATH conf=$YOLO_CONF device=$YOLO_DEVICE"
+echo "[INFO] CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
 echo "[INFO] 4bit: $AURORAIG_LLM_LOAD_IN_4BIT (${AURORAIG_LLM_BNB_4BIT_COMPUTE_DTYPE:-disabled})"
 echo "[INFO] deterministic: temperature=$AURORAIG_LLM_TEMPERATURE top_p=$AURORAIG_LLM_TOP_P"
 echo "[INFO] max_new_tokens: $AURORAIG_LLM_MAX_NEW_TOKENS"
@@ -94,6 +97,30 @@ echo "[INFO] filters: spatial_only=$AURORAIG_LLM_ENABLE_SPATIAL_VOCAB_FILTER_ONL
 echo "[INFO] PYTHONPATH includes: $PROJECT_ROOT"
 
 cd "$PROJECT_ROOT"
+
+if [[ "${SKIP_LLM_SMOKE_TEST:-0}" != "1" ]]; then
+  "$PYTHON_BIN" - <<'PY'
+from auroraig.interfaces.llm_client import RewriteRequest, resolve_default_llm_client
+
+client = resolve_default_llm_client()
+request = RewriteRequest(
+    instruction="sweep the pink block to the right",
+    n=3,
+    object_candidates=["drawer", "slider"],
+)
+rewrites = client.rewrite_instruction_with_types(request)
+print("[INFO] LLM smoke rewrites:", [(x.text, x.negative_type) for x in rewrites])
+if not rewrites:
+    raise SystemExit(
+        "LLM smoke test returned no rewrites. Check Qwen path/family, CUDA memory, or filters before full generation."
+    )
+PY
+fi
+
+RULE_FALLBACK_FLAG=()
+if [[ "$DISABLE_RULE_FALLBACK_WHEN_LLM_EMPTY" == "1" || "$DISABLE_RULE_FALLBACK_WHEN_LLM_EMPTY" == "true" || "$DISABLE_RULE_FALLBACK_WHEN_LLM_EMPTY" == "True" ]]; then
+  RULE_FALLBACK_FLAG=(--disable_rule_fallback_when_llm_empty)
+fi
 
 "$PYTHON_BIN" scripts/build_consistency_pairs.py \
   --reconvla_json "$TRAIN_JSON" \
@@ -106,7 +133,7 @@ cd "$PROJECT_ROOT"
   --max_llm_negatives "$MAX_LLM_NEGATIVES" \
   --max_rule_negatives "$MAX_RULE_NEGATIVES" \
   --min_pairs "$MIN_PAIRS" \
-  --disable_rule_fallback_when_llm_empty
+  "${RULE_FALLBACK_FLAG[@]}"
 
 "$PYTHON_BIN" scripts/build_consistency_pairs.py \
   --reconvla_json "$VAL_JSON" \
@@ -119,7 +146,7 @@ cd "$PROJECT_ROOT"
   --max_llm_negatives "$MAX_LLM_NEGATIVES" \
   --max_rule_negatives "$MAX_RULE_NEGATIVES" \
   --min_pairs "$MIN_PAIRS" \
-  --disable_rule_fallback_when_llm_empty
+  "${RULE_FALLBACK_FLAG[@]}"
 
 "$PYTHON_BIN" scripts/filter_consistency_pairs.py \
   --input_jsonl "$TRAIN_RAW_OUT" \
