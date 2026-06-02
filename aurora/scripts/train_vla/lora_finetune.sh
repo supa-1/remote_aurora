@@ -40,6 +40,16 @@ fi
 
 MODEL_VERSION="${MODEL_VERSION:-qwen_2}"
 MAX_STEPS_ARG=${MAX_STEPS:+--max_steps ${MAX_STEPS}}
+LORA_ARGS=()
+if [[ "${LORA_ENABLE:-True}" == "True" || "${LORA_ENABLE:-True}" == "true" || "${LORA_ENABLE:-True}" == "1" ]]; then
+    LORA_ARGS=(
+        --lora_enable
+        --lora_r "${LORA_R:-8}"
+        --lora_alpha "${LORA_ALPHA:-16}"
+        --lora_dropout "${LORA_DROPOUT:-0.05}"
+        --lora_bias "${LORA_BIAS:-none}"
+    )
+fi
 
 "$PYTHON_BIN" "$RECONVLA_ROOT/train_vla.py" \
     --per_device_train_batch_size "${PER_DEVICE_TRAIN_BATCH_SIZE:-1}" \
@@ -101,11 +111,7 @@ MAX_STEPS_ARG=${MAX_STEPS:+--max_steps ${MAX_STEPS}}
     --consistency_use_pair_weights "${CONSISTENCY_USE_PAIR_WEIGHTS:-True}" \
     --consistency_min_pair_weight "${CONSISTENCY_MIN_PAIR_WEIGHT:-0.5}" \
     --consistency_type_weights_json "${CONSISTENCY_TYPE_WEIGHTS_JSON:-{\"action_polarity_flip\":1.0,\"neighbor_object_replacement\":0.9,\"direction_replacement\":0.85,\"hard_color_negative\":0.85,\"subject_object_swap\":0.85,\"spatial_replacement\":0.8,\"color_replacement\":0.75,\"easy_color_negative\":0.55,\"content_simplification\":0.65,\"other_rewrite\":0.7,\"rule_fallback\":0.6}}" \
-    --lora_enable \
-    --lora_r "${LORA_R:-8}" \
-    --lora_alpha "${LORA_ALPHA:-16}" \
-    --lora_dropout "${LORA_DROPOUT:-0.05}" \
-    --lora_bias "${LORA_BIAS:-none}" \
+    "${LORA_ARGS[@]}" \
     --double_quant "${DOUBLE_QUANT:-True}" \
     --quant_type "${QUANT_TYPE:-nf4}" \
     --bit "${BIT:-4}"
