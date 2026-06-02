@@ -5,10 +5,15 @@ set -euo pipefail
 # both training and validation splits from processed CALVIN JSON.
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MODEL_PATH_DEFAULT="$PROJECT_ROOT/models/qwen-8b"
 # Run this script from the server's aurora environment. Override PYTHON_BIN if needed.
 PYTHON_BIN="${PYTHON_BIN:-python}"
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-1}"
+
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/train_vla/hpc_env.sh"
+setup_hpc_env "${CONDA_ENV:-aurora}"
 
 MODEL_PATH="${AURORAIG_LLM_MODEL_PATH:-$MODEL_PATH_DEFAULT}"
 DATASET_NAME="${DATASET_NAME:-calvin_debug_dataset}"
