@@ -28,19 +28,19 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--calvin_root",
         type=str,
-        default="../calvin/calvin_debug_dataset",
+        default="../calvin/dataset/calvin_debug_dataset",
         help="CALVIN dataset root that contains training/ and validation/.",
     )
     p.add_argument(
         "--output_image_root",
         type=str,
-        default="../calvin/process/calvin_debug_dataset/processed_images",
+        default="../calvin/dataset/process/calvin_debug_dataset/processed_images",
         help="Output root for stitched images.",
     )
     p.add_argument(
         "--output_json_root",
         type=str,
-        default="../calvin/process/calvin_debug_dataset/processed_json",
+        default="../calvin/dataset/process/calvin_debug_dataset/processed_json",
         help="Output root for training_r*.json and validation_r*.json.",
     )
     p.add_argument(

@@ -4,7 +4,8 @@ set -euo pipefail
 AURORAIG_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 RECONVLA_ROOT="${RECONVLA_ROOT:-$AURORAIG_ROOT/reconvla}"
 ASSET_ROOT="${ASSET_ROOT:-$AURORAIG_ROOT/../ReconVLA/reconvla}"
-DATA_ROOT="${DATA_ROOT:-$AURORAIG_ROOT/../calvin/process/calvin_debug_dataset}"
+DATASET_NAME="${DATASET_NAME:-calvin_debug_dataset}"
+DATA_ROOT="${DATA_ROOT:-$AURORAIG_ROOT/../calvin/dataset/process/$DATASET_NAME}"
 
 MODEL_NAME_OR_PATH="${MODEL_NAME_OR_PATH:-$ASSET_ROOT/checkpoints/pretrain-checkpoint-10388}"
 VISION_TOWER="${VISION_TOWER:-$ASSET_ROOT/siglip-so400m-patch14-384}"
