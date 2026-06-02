@@ -48,8 +48,13 @@ if [[ ! -f "$VAL_JSON" ]]; then
   exit 1
 fi
 
-if [[ ! -x "$PYTHON_BIN" ]]; then
-  echo "[ERROR] python not executable: $PYTHON_BIN" >&2
+if [[ "$PYTHON_BIN" == */* ]]; then
+  if [[ ! -x "$PYTHON_BIN" ]]; then
+    echo "[ERROR] python not executable: $PYTHON_BIN" >&2
+    exit 1
+  fi
+elif ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+  echo "[ERROR] python not found on PATH: $PYTHON_BIN" >&2
   exit 1
 fi
 
@@ -57,8 +62,10 @@ mkdir -p "$OUT_ROOT"
 
 export AURORAIG_LLM_MODEL_PATH="$MODEL_PATH"
 export AURORAIG_LLM_FAMILY="${AURORAIG_LLM_FAMILY:-qwen3}"
-export AURORAIG_LLM_LOAD_IN_4BIT="${AURORAIG_LLM_LOAD_IN_4BIT:-1}"
-export AURORAIG_LLM_BNB_4BIT_COMPUTE_DTYPE="${AURORAIG_LLM_BNB_4BIT_COMPUTE_DTYPE:-bfloat16}"
+export AURORAIG_LLM_LOAD_IN_4BIT="${AURORAIG_LLM_LOAD_IN_4BIT:-0}"
+if [[ "$AURORAIG_LLM_LOAD_IN_4BIT" == "1" || "$AURORAIG_LLM_LOAD_IN_4BIT" == "true" || "$AURORAIG_LLM_LOAD_IN_4BIT" == "True" ]]; then
+  export AURORAIG_LLM_BNB_4BIT_COMPUTE_DTYPE="${AURORAIG_LLM_BNB_4BIT_COMPUTE_DTYPE:-bfloat16}"
+fi
 export AURORAIG_LLM_OFFLOAD_BUFFERS="${AURORAIG_LLM_OFFLOAD_BUFFERS:-0}"
 export AURORAIG_LLM_TEMPERATURE="${AURORAIG_LLM_TEMPERATURE:-0}"
 export AURORAIG_LLM_TOP_P="${AURORAIG_LLM_TOP_P:-1.0}"
@@ -79,7 +86,7 @@ echo "[INFO] max_rule_negatives: $MAX_RULE_NEGATIVES"
 echo "[INFO] min_pairs: $MIN_PAIRS"
 echo "[INFO] python_bin: $PYTHON_BIN"
 echo "[INFO] yolo: $YOLO_MODEL_PATH conf=$YOLO_CONF device=$YOLO_DEVICE"
-echo "[INFO] 4bit: $AURORAIG_LLM_LOAD_IN_4BIT ($AURORAIG_LLM_BNB_4BIT_COMPUTE_DTYPE)"
+echo "[INFO] 4bit: $AURORAIG_LLM_LOAD_IN_4BIT (${AURORAIG_LLM_BNB_4BIT_COMPUTE_DTYPE:-disabled})"
 echo "[INFO] deterministic: temperature=$AURORAIG_LLM_TEMPERATURE top_p=$AURORAIG_LLM_TOP_P"
 echo "[INFO] max_new_tokens: $AURORAIG_LLM_MAX_NEW_TOKENS"
 echo "[INFO] offload_buffers: $AURORAIG_LLM_OFFLOAD_BUFFERS"

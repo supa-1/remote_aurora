@@ -5,7 +5,9 @@ annotated-types==0.7.0
 anyio==4.8.0
 attrs==25.1.0
 bcrypt==4.2.1
-bitsandbytes==0.45.2
+# bitsandbytes is intentionally not installed by default on the ARM A100 server.
+# It imports torch.library.impl_abstract, which is unavailable in torch==2.1.0.
+# Use bf16 LoRA (BIT=16) unless the torch/bitsandbytes stack is rebuilt together.
 blinker==1.9.0
 boto3==1.36.24
 botocore==1.36.24
