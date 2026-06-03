@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Sequence
 
 import numpy as np
 from PIL import Image
@@ -65,6 +67,19 @@ def parse_args() -> argparse.Namespace:
         default=0,
         help="0 means all samples. >0 means debug cap per split.",
     )
+    p.add_argument(
+        "--num_workers",
+        type=int,
+        default=1,
+        help="Number of worker processes per split. Use 1 for deterministic debug runs.",
+    )
+    p.add_argument(
+        "--splits",
+        nargs="+",
+        default=["training", "validation"],
+        choices=["training", "validation"],
+        help="Dataset splits to process.",
+    )
     return p.parse_args()
 
 
@@ -94,8 +109,16 @@ def load_npz(split_dir: Path, frame_id: int) -> Dict[str, np.ndarray]:
     npz_path = split_dir / f"episode_{frame_id:07d}.npz"
     if not npz_path.exists():
         raise FileNotFoundError(f"missing npz: {npz_path}")
-    arr = np.load(npz_path)
-    return {k: arr[k] for k in arr.files}
+    with np.load(npz_path) as arr:
+        return {k: arr[k] for k in arr.files}
+
+
+def load_rel_actions(split_dir: Path, frame_id: int) -> np.ndarray:
+    npz_path = split_dir / f"episode_{frame_id:07d}.npz"
+    if not npz_path.exists():
+        raise FileNotFoundError(f"missing npz: {npz_path}")
+    with np.load(npz_path) as arr:
+        return arr["rel_actions"].reshape(-1)
 
 
 def resize_and_concat(rgb_static: np.ndarray, rgb_gripper: np.ndarray) -> Image.Image:
@@ -111,14 +134,25 @@ def resize_and_concat(rgb_static: np.ndarray, rgb_gripper: np.ndarray) -> Image.
     return canvas
 
 
-def collect_future_actions(split_dir: Path, frame_id: int, end_id: int, future_k: int) -> List[np.ndarray]:
+def collect_future_actions(
+    split_dir: Path,
+    frame_id: int,
+    end_id: int,
+    future_k: int,
+    rel_action_cache: Dict[int, np.ndarray] | None = None,
+) -> List[np.ndarray]:
     actions: List[np.ndarray] = []
     for delta in range(future_k):
         fid = frame_id + delta
         if fid > end_id:
             break
-        arr = load_npz(split_dir, fid)
-        actions.append(arr["rel_actions"].reshape(-1))
+        if rel_action_cache is not None and fid in rel_action_cache:
+            action = rel_action_cache[fid]
+        else:
+            action = load_rel_actions(split_dir, fid)
+            if rel_action_cache is not None:
+                rel_action_cache[fid] = action
+        actions.append(action)
 
     if not actions:
         raise ValueError(f"no future actions for frame {frame_id}")
@@ -165,6 +199,60 @@ def build_item(
     }
 
 
+def process_task_range(
+    args: tuple[int, TaskRange, str, str, str, int, str]
+) -> List[Dict]:
+    task_idx, task_range, split_dir_str, split, split_img_root_str, future_k, target_mode = args
+    split_dir = Path(split_dir_str)
+    split_img_root = Path(split_img_root_str)
+    rows: List[Dict] = []
+    rel_action_cache: Dict[int, np.ndarray] = {}
+
+    for frame_id in range(task_range.start, task_range.end + 1):
+        current = load_npz(split_dir, frame_id)
+        rgb_static = current["rgb_static"]
+        rgb_gripper = current["rgb_gripper"]
+        robot_obs = current["robot_obs"]
+        rel_action_cache[frame_id] = current["rel_actions"].reshape(-1)
+
+        current_img = resize_and_concat(rgb_static, rgb_gripper)
+
+        if target_mode == "same":
+            target_img = current_img
+        else:
+            next_id = min(frame_id + 1, task_range.end)
+            next_arr = load_npz(split_dir, next_id)
+            target_img = resize_and_concat(next_arr["rgb_static"], rgb_gripper)
+
+        sample_name = f"t{task_idx:03d}_{frame_id:07d}.jpg"
+        sample_target_name = f"target/{sample_name}"
+
+        current_img.save(split_img_root / sample_name)
+        target_img.save(split_img_root / sample_target_name)
+
+        future_actions = collect_future_actions(
+            split_dir=split_dir,
+            frame_id=frame_id,
+            end_id=task_range.end,
+            future_k=future_k,
+            rel_action_cache=rel_action_cache,
+        )
+
+        rows.append(
+            build_item(
+                sample_id=f"{split}_{frame_id:07d}",
+                split=split,
+                image_rel=sample_name,
+                image_target_rel=sample_target_name,
+                instruction=task_range.instruction,
+                task=task_range.task,
+                future_actions=future_actions,
+                robot_obs=robot_obs,
+            )
+        )
+    return rows
+
+
 def build_split(
     split: str,
     calvin_root: Path,
@@ -172,6 +260,7 @@ def build_split(
     future_k: int,
     target_mode: str,
     max_samples_per_split: int,
+    num_workers: int = 1,
 ) -> List[Dict]:
     split_dir = calvin_root / split
     task_ranges = load_task_ranges(split_dir)
@@ -184,50 +273,28 @@ def build_split(
     rows: List[Dict] = []
     total_budget = max_samples_per_split if max_samples_per_split > 0 else None
 
-    pbar = tqdm(task_ranges, desc=f"{split}: tasks")
-    for task_idx, task_range in enumerate(pbar):
-        for frame_id in range(task_range.start, task_range.end + 1):
-            if total_budget is not None and len(rows) >= total_budget:
-                return rows
+    worker_args = [
+        (task_idx, task_range, str(split_dir), split, str(split_img_root), future_k, target_mode)
+        for task_idx, task_range in enumerate(task_ranges)
+    ]
 
-            current = load_npz(split_dir, frame_id)
-            rgb_static = current["rgb_static"]
-            rgb_gripper = current["rgb_gripper"]
-            robot_obs = current["robot_obs"]
-
-            current_img = resize_and_concat(rgb_static, rgb_gripper)
-
-            if target_mode == "same":
-                target_img = current_img
-            else:
-                next_id = min(frame_id + 1, task_range.end)
-                next_arr = load_npz(split_dir, next_id)
-                target_img = resize_and_concat(next_arr["rgb_static"], rgb_gripper)
-
-            sample_name = f"t{task_idx:03d}_{frame_id:07d}.jpg"
-            sample_target_name = f"target/{sample_name}"
-
-            current_img.save(split_img_root / sample_name)
-            target_img.save(split_img_root / sample_target_name)
-
-            future_actions = collect_future_actions(
-                split_dir=split_dir,
-                frame_id=frame_id,
-                end_id=task_range.end,
-                future_k=future_k,
+    if num_workers > 1 and total_budget is None:
+        workers = min(num_workers, len(worker_args), os.cpu_count() or 1)
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            pbar = tqdm(
+                executor.map(process_task_range, worker_args),
+                total=len(worker_args),
+                desc=f"{split}: tasks",
             )
-
-            item = build_item(
-                sample_id=f"{split}_{frame_id:07d}",
-                split=split,
-                image_rel=sample_name,
-                image_target_rel=sample_target_name,
-                instruction=task_range.instruction,
-                task=task_range.task,
-                future_actions=future_actions,
-                robot_obs=robot_obs,
-            )
-            rows.append(item)
+            for task_rows in pbar:
+                rows.extend(task_rows)
+    else:
+        pbar = tqdm(worker_args, desc=f"{split}: tasks")
+        for worker_arg in pbar:
+            for item in process_task_range(worker_arg):
+                if total_budget is not None and len(rows) >= total_budget:
+                    return rows
+                rows.append(item)
 
     return rows
 
@@ -240,7 +307,7 @@ def main() -> None:
 
     output_json_root.mkdir(parents=True, exist_ok=True)
 
-    for split in ("training", "validation"):
+    for split in args.splits:
         rows = build_split(
             split=split,
             calvin_root=calvin_root,
@@ -248,6 +315,7 @@ def main() -> None:
             future_k=args.future_k,
             target_mode=args.target_mode,
             max_samples_per_split=args.max_samples_per_split,
+            num_workers=max(1, args.num_workers),
         )
 
         out_json = output_json_root / f"{split}_r{args.future_k}.json"

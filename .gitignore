@@ -11,6 +11,8 @@ __pycache__/
 # Env / logs / outputs
 .env
 *.log
+*dsub*.sh
+aurora/tests/
 wandb/
 runs/
 outputs/
