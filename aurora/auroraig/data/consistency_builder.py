@@ -22,18 +22,26 @@ def build_consistency_pairs(
 ) -> int:
     rows: List[Dict] = []
     negatives_cache: Dict[str, List[Tuple[str, str]]] = {}
+    object_candidates_cache: Dict[str, List[str]] = {}
     iterator = ReconvlaJsonAdapter.iter_records(
         reconvla_json,
-        image_root=image_root,
-        yolo_detector=yolo_detector,
     )
     for record in tqdm(iterator, desc="building consistency pairs", unit="sample"):
         instruction_key = record.instruction.strip().lower()
         negatives = negatives_cache.get(instruction_key)
+        object_candidates = object_candidates_cache.get(instruction_key)
         if negatives is None:
+            object_candidates = list(record.object_candidates)
+            if yolo_detector is not None and image_root:
+                image_abs = Path(image_root) / record.image
+                yolo_candidates = yolo_detector.detect_objects(str(image_abs))
+                if yolo_candidates:
+                    object_candidates = yolo_candidates
+            object_candidates_cache[instruction_key] = object_candidates
+
             rewritten = rewriter.rewrite(
                 record.instruction,
-                object_candidates=record.object_candidates,
+                object_candidates=object_candidates,
             )
             negatives = list(rewritten.negatives)
             negative_types = list(getattr(rewritten, "negative_types", []))
@@ -43,12 +51,14 @@ def build_consistency_pairs(
                         record.instruction,
                         fake,
                         cfg,
-                        object_candidates=record.object_candidates,
+                        object_candidates=object_candidates,
                     )
                     for fake in negatives
                 ]
             negatives = list(zip(negatives, negative_types))
             negatives_cache[instruction_key] = negatives
+        elif object_candidates is None:
+            object_candidates = list(record.object_candidates)
 
         for fake_instruction, negative_type in negatives:
             rows.append(
@@ -58,7 +68,7 @@ def build_consistency_pairs(
                     "fake_instruction": fake_instruction,
                     "action_text": record.action_text,
                     "negative_type": negative_type,
-                    "object_candidates": record.object_candidates,
+                    "object_candidates": object_candidates,
                 }
             )
 

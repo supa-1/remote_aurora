@@ -28,6 +28,7 @@ DISABLE_RULE_FALLBACK_WHEN_LLM_EMPTY="${DISABLE_RULE_FALLBACK_WHEN_LLM_EMPTY:-0}
 YOLO_MODEL_PATH="${YOLO_MODEL_PATH:-$PROJECT_ROOT/../ReconVLA/reconvla/scripts/helper/best.pt}"
 YOLO_CONF="${YOLO_CONF:-0.25}"
 YOLO_DEVICE="${YOLO_DEVICE:-0}"
+ENABLE_YOLO_NEIGHBORS="${ENABLE_YOLO_NEIGHBORS:-1}"
 
 TRAIN_JSON="$JSON_ROOT/training_r5.json"
 VAL_JSON="$JSON_ROOT/validation_r5.json"
@@ -94,7 +95,7 @@ echo "[INFO] max_llm_negatives: $MAX_LLM_NEGATIVES"
 echo "[INFO] max_rule_negatives: $MAX_RULE_NEGATIVES"
 echo "[INFO] min_pairs: $MIN_PAIRS"
 echo "[INFO] python_bin: $PYTHON_BIN"
-echo "[INFO] yolo: $YOLO_MODEL_PATH conf=$YOLO_CONF device=$YOLO_DEVICE"
+echo "[INFO] yolo: enabled=$ENABLE_YOLO_NEIGHBORS path=$YOLO_MODEL_PATH conf=$YOLO_CONF device=$YOLO_DEVICE"
 echo "[INFO] CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
 echo "[INFO] 4bit: $AURORAIG_LLM_LOAD_IN_4BIT (${AURORAIG_LLM_BNB_4BIT_COMPUTE_DTYPE:-disabled})"
 echo "[INFO] deterministic: temperature=$AURORAIG_LLM_TEMPERATURE top_p=$AURORAIG_LLM_TOP_P"
@@ -186,30 +187,33 @@ if [[ "$DISABLE_RULE_FALLBACK_WHEN_LLM_EMPTY" == "1" || "$DISABLE_RULE_FALLBACK_
   RULE_FALLBACK_FLAG=(--disable_rule_fallback_when_llm_empty)
 fi
 
+YOLO_ARGS=()
+if [[ "$ENABLE_YOLO_NEIGHBORS" == "1" || "$ENABLE_YOLO_NEIGHBORS" == "true" || "$ENABLE_YOLO_NEIGHBORS" == "True" ]]; then
+  YOLO_ARGS=(
+    --enable_yolo_neighbors
+    --image_root "$IMAGE_ROOT"
+    --yolo_model_path "$YOLO_MODEL_PATH"
+    --yolo_conf "$YOLO_CONF"
+    --yolo_device "$YOLO_DEVICE"
+  )
+fi
+
 "$PYTHON_BIN" scripts/build_consistency_pairs.py \
   --reconvla_json "$TRAIN_JSON" \
   --output_jsonl "$TRAIN_RAW_OUT" \
-  --enable_yolo_neighbors \
-  --image_root "$IMAGE_ROOT" \
-  --yolo_model_path "$YOLO_MODEL_PATH" \
-  --yolo_conf "$YOLO_CONF" \
-  --yolo_device "$YOLO_DEVICE" \
   --max_llm_negatives "$MAX_LLM_NEGATIVES" \
   --max_rule_negatives "$MAX_RULE_NEGATIVES" \
   --min_pairs "$MIN_PAIRS" \
+  "${YOLO_ARGS[@]}" \
   "${RULE_FALLBACK_FLAG[@]}"
 
 "$PYTHON_BIN" scripts/build_consistency_pairs.py \
   --reconvla_json "$VAL_JSON" \
   --output_jsonl "$VAL_RAW_OUT" \
-  --enable_yolo_neighbors \
-  --image_root "$IMAGE_ROOT" \
-  --yolo_model_path "$YOLO_MODEL_PATH" \
-  --yolo_conf "$YOLO_CONF" \
-  --yolo_device "$YOLO_DEVICE" \
   --max_llm_negatives "$MAX_LLM_NEGATIVES" \
   --max_rule_negatives "$MAX_RULE_NEGATIVES" \
   --min_pairs "$MIN_PAIRS" \
+  "${YOLO_ARGS[@]}" \
   "${RULE_FALLBACK_FLAG[@]}"
 
 "$PYTHON_BIN" scripts/filter_consistency_pairs.py \
