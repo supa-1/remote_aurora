@@ -80,4 +80,18 @@ calvin/dataset/
 *.tar.gz
 *.tgz
 *.rar
-*.7zcalvin/
+*.7z
+calvin/
+
+# Documentation is maintained in the WSL AuroraIG workspace, not in this
+# server-deployment mirror. Keep server pulls code-only.
+*.md
+README*
+AGENT*
+AGENTS*
+doc/
+docs/
+docs-main/
+**/doc/
+**/docs/
+**/docs-main/
