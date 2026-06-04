@@ -60,6 +60,15 @@ EP_LEN = 72
 NUM_SEQUENCES = 500
 
 
+def as_uint8_rgb(image):
+    arr = np.asarray(image)
+    if arr.dtype != np.uint8:
+        if np.issubdtype(arr.dtype, np.floating) and arr.size and float(np.nanmax(arr)) <= 1.0:
+            arr = arr * 255.0
+        arr = np.clip(arr, 0, 255).astype(np.uint8)
+    return np.ascontiguousarray(arr)
+
+
 def get_epoch(checkpoint):
     if "=" not in checkpoint.stem:
         return "0"
@@ -97,6 +106,8 @@ class CustomModel(CalvinBaseModel):
         """
         img_static = obs["rgb_obs"]["rgb_static"]
         img_gripper = obs["rgb_obs"]["rgb_gripper"]
+        img_static = as_uint8_rgb(img_static)
+        img_gripper = as_uint8_rgb(img_gripper)
         robot_obs_data = obs["robot_obs"].tolist()
         img_static_data = img_static.tobytes()
         img_gripper_data = img_gripper.tobytes()
