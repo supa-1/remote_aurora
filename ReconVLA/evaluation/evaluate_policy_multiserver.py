@@ -159,7 +159,7 @@ class CustomModel(CalvinBaseModel):
         return action_set
 
 
-def evaluate_policy(model, env, epoch, questions, num_chunks, chunk_idx, save_name, eval_log_dir=None, debug=False, create_plan_tsne=False,save_dir=None):
+def evaluate_policy(model, env, epoch, questions, num_chunks, chunk_idx, save_name, eval_log_dir=None, debug=False, create_plan_tsne=False,save_dir=None, conf_dir=None):
     """
     Run this function to evaluate a model on the CALVIN challenge.
 
@@ -174,7 +174,7 @@ def evaluate_policy(model, env, epoch, questions, num_chunks, chunk_idx, save_na
     Returns:
         Dictionary with results
     """
-    conf_dir = Path(__file__).absolute().parents[2] / "conf"
+    conf_dir = Path(conf_dir) if conf_dir else Path(__file__).absolute().parents[2] / "conf"
     task_cfg = OmegaConf.load(conf_dir / "callbacks/rollout/tasks/new_playtable_tasks.yaml")
     task_oracle = hydra.utils.instantiate(task_cfg)
     val_annotations = OmegaConf.load(conf_dir / "annotations/new_playtable_validation.yaml")
@@ -372,6 +372,12 @@ def main():
     parser.add_argument("--save_name", type=str, default="abc_d")
     parser.add_argument("--ep_len", type=int, default=100)
     parser.add_argument("--num_sequences", type=int, default=500)
+    parser.add_argument(
+        "--conf_dir",
+        type=str,
+        default=None,
+        help="Path to CALVIN conf directory. Defaults to ../../conf for compatibility.",
+    )
     args = parser.parse_args()
     EP_LEN=args.ep_len
     NUM_SEQUENCES=args.num_sequences
@@ -392,7 +398,7 @@ def main():
         model = CustomModel(f"http://127.0.0.1:{args.port}",not_action_chunk)
         # model = CustomModel(f"http://10.120.47.101:{args.port}")
         env = make_env(args.dataset_path)
-        evaluate_policy(model, env, 0, questions, args.num_chunks, args.chunk_idx, args.save_name, args.eval_log_dir, debug=args.debug,create_plan_tsne=False,save_dir=args.save_dir)
+        evaluate_policy(model, env, 0, questions, args.num_chunks, args.chunk_idx, args.save_name, args.eval_log_dir, debug=args.debug,create_plan_tsne=False,save_dir=args.save_dir, conf_dir=args.conf_dir)
     else:
         assert "train_folder" in args
 
@@ -419,7 +425,7 @@ def main():
                 env=env,
                 device_id=args.device,
             )
-            evaluate_policy(model, env, epoch, eval_log_dir=args.eval_log_dir, debug=args.debug, create_plan_tsne=True,save_dir=args.save_dir)
+            evaluate_policy(model, env, epoch, eval_log_dir=args.eval_log_dir, debug=args.debug, create_plan_tsne=True,save_dir=args.save_dir, conf_dir=args.conf_dir)
             
 
 if __name__ == "__main__":

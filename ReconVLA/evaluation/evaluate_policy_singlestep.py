@@ -12,7 +12,7 @@ import torch
 
 
 def evaluate_policy_singlestep(model, env, datamodule, args, checkpoint):
-    conf_dir = Path(__file__).absolute().parents[2] / "conf"
+    conf_dir = Path(args.conf_dir) if args.conf_dir else Path(__file__).absolute().parents[2] / "conf"
     task_cfg = OmegaConf.load(conf_dir / "callbacks/rollout/tasks/new_playtable_tasks.yaml")
     task_oracle = hydra.utils.instantiate(task_cfg)
     val_annotations = OmegaConf.load(conf_dir / "annotations/new_playtable_validation.yaml")
@@ -82,6 +82,12 @@ if __name__ == "__main__":
     )
 
     parser.add_argument("--debug", action="store_true", help="Print debug info and visualize environment.")
+    parser.add_argument(
+        "--conf_dir",
+        type=str,
+        default=None,
+        help="Path to CALVIN conf directory. Defaults to ../../conf for compatibility.",
+    )
 
     args = parser.parse_args()
 
