@@ -224,7 +224,7 @@ def evaluate_policy(model, env, epoch, questions, num_chunks, chunk_idx, save_na
     results_name=f"{save_name}_{num_chunks}_{chunk_idx}_{current_time_minute}.jsonl"
     results_complete_path=results_path / results_name
 
-    print_and_save(results, eval_sequences, results_complete_path, epoch=None)
+    print_and_save(results, eval_sequences, results_path, epoch=None)
     return 0
 
 
