@@ -22,7 +22,7 @@ export BF16="${BF16:-True}"
 export FP16="${FP16:-False}"
 export TF32="${TF32:-True}"
 export MODEL_MAX_LENGTH="${MODEL_MAX_LENGTH:-32768}"
-export ATTN_IMPLEMENTATION="${ATTN_IMPLEMENTATION:-flash_attention_2}"
+export ATTN_IMPLEMENTATION="${ATTN_IMPLEMENTATION:-eager}"
 export BIT="${BIT:-16}"
 
 export ENABLE_TEXT_RECONSTRUCTION="${ENABLE_TEXT_RECONSTRUCTION:-False}"
