@@ -22,6 +22,16 @@ setup_hpc_env() {
         fi
     fi
 
+    # Make conda-provided shared libraries visible to Python extension modules
+    # launched from DSUB's non-interactive shell. This covers runtimes such as
+    # libopenblas.so.0 that torch/transformers may need before Python code runs.
+    if [[ -n "${CONDA_PREFIX:-}" && -d "$CONDA_PREFIX/lib" ]]; then
+        case ":${LD_LIBRARY_PATH:-}:" in
+            *":$CONDA_PREFIX/lib:"*) ;;
+            *) export LD_LIBRARY_PATH="$CONDA_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ;;
+        esac
+    fi
+
     # On the ARM A100 server, sklearn may load its bundled libgomp too late and
     # fail with "cannot allocate memory in static TLS block". Preload libgomp
     # before Python starts so transformers.trainer can import sklearn safely.
