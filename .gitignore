@@ -13,6 +13,7 @@ __pycache__/
 *.log
 *dsub*.sh
 aurora/tests/
+**/tests/
 wandb/
 runs/
 outputs/
