@@ -103,6 +103,8 @@ def main() -> None:
         rewriter = HybridInstructionRewriter(cfg=cfg, llm_client=resolve_default_llm_client())
 
     written = 0
+    consistency_matched = 0
+    consistency_missing = 0
     for item in data:
         conversations = item.get("conversations", [])
         if len(conversations) < 2:
@@ -118,6 +120,7 @@ def main() -> None:
         negative_type = "other_rewrite"
 
         if pair_pool:
+            consistency_matched += 1
             fake_candidates = [x[0] for x in pair_pool]
             type_candidates = [x[1] for x in pair_pool]
             idx = random.randrange(len(fake_candidates))
@@ -126,7 +129,12 @@ def main() -> None:
             item["aux_fake_instruction_pool"] = fake_candidates
             item["aux_negative_type_pool"] = type_candidates
         else:
-            if rewriter is None:
+            if consistency_pool:
+                # A provided consistency JSONL is the authoritative source.
+                # Leave uncovered instructions empty so training can use its
+                # deterministic rule fallback without loading the LLM again.
+                consistency_missing += 1
+            elif rewriter is None:
                 cfg = RewriterConfig(
                     enable_rule_rewrite=True,
                     enable_llm_rewrite=True,
@@ -135,20 +143,34 @@ def main() -> None:
                     max_llm_negatives=args.max_llm_negatives,
                 )
                 rewriter = HybridInstructionRewriter(cfg=cfg, llm_client=resolve_default_llm_client())
-            rewrite_out = rewriter.rewrite(true_instruction, object_candidates=item.get("object_candidates", []))
-            fake_instruction = rewrite_out.negatives[0] if rewrite_out.negatives else ""
+            if rewriter is not None:
+                rewrite_out = rewriter.rewrite(
+                    true_instruction,
+                    object_candidates=item.get("object_candidates", []),
+                )
+                fake_instruction = rewrite_out.negatives[0] if rewrite_out.negatives else ""
 
         item["aux_true_instruction"] = true_instruction
         item["aux_fake_instruction"] = fake_instruction
         item["aux_negative_type"] = negative_type
         item["aux_text_recon_noisy"] = _corrupt_instruction(true_instruction, args.text_corrupt_ratio)
-        item["aux_build_source"] = "consistency_jsonl_precompute" if pair_pool else "offline_llm_precompute"
+        if pair_pool:
+            item["aux_build_source"] = "consistency_jsonl_precompute"
+        elif consistency_pool:
+            item["aux_build_source"] = "consistency_jsonl_missing"
+        else:
+            item["aux_build_source"] = "offline_llm_precompute"
         written += 1
 
     with open(args.output_json, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
 
     print(f"done: wrote {written} aux records to {args.output_json}")
+    if consistency_pool:
+        print(
+            "consistency coverage: "
+            f"matched={consistency_matched} missing={consistency_missing}"
+        )
 
 
 if __name__ == "__main__":
