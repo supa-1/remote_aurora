@@ -27,6 +27,7 @@ DATA_ROOT="${DATA_ROOT:-$AURORAIG_ROOT/../calvin/dataset/process/$DATASET_NAME}"
 
 export PYTHONPATH="$RECONVLA_ROOT:$AURORAIG_ROOT:${PYTHONPATH:-}"
 PYTHON_BIN="${PYTHON_BIN:-python}"
+NUM_GPUS="${NUM_GPUS:-1}"
 
 if [[ "$PYTHON_BIN" == */* ]]; then
     if [[ ! -x "$PYTHON_BIN" ]]; then
@@ -37,6 +38,27 @@ elif ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
     echo "[ERROR] python not found on PATH: $PYTHON_BIN" >&2
     exit 1
 fi
+
+if ! [[ "$NUM_GPUS" =~ ^[1-9][0-9]*$ ]]; then
+    echo "[ERROR] NUM_GPUS must be a positive integer: $NUM_GPUS" >&2
+    exit 1
+fi
+
+TRAIN_LAUNCHER=("$PYTHON_BIN")
+if (( NUM_GPUS > 1 )); then
+    if ! command -v torchrun >/dev/null 2>&1; then
+        echo "[ERROR] torchrun not found on PATH" >&2
+        exit 1
+    fi
+    TRAIN_LAUNCHER=(
+        torchrun
+        --standalone
+        --nnodes=1
+        --nproc_per_node="$NUM_GPUS"
+    )
+fi
+
+echo "[INFO] Training launcher: ${TRAIN_LAUNCHER[*]}"
 
 MODEL_VERSION="${MODEL_VERSION:-qwen_2}"
 MAX_STEPS_ARG=${MAX_STEPS:+--max_steps ${MAX_STEPS}}
@@ -51,7 +73,7 @@ if [[ "${LORA_ENABLE:-True}" == "True" || "${LORA_ENABLE:-True}" == "true" || "$
     )
 fi
 
-"$PYTHON_BIN" "$RECONVLA_ROOT/train_vla.py" \
+"${TRAIN_LAUNCHER[@]}" "$RECONVLA_ROOT/train_vla.py" \
     --per_device_train_batch_size "${PER_DEVICE_TRAIN_BATCH_SIZE:-1}" \
     --gradient_accumulation_steps "${GRAD_ACC_STEPS:-8}" \
     --learning_rate "${LEARNING_RATE:-1e-4}" \
@@ -90,6 +112,7 @@ fi
     --model_max_length "${MODEL_MAX_LENGTH:-32768}" \
     --gradient_checkpointing "${GRADIENT_CHECKPOINTING:-True}" \
     --gradient_checkpointing_kwargs '{"use_reentrant": false}' \
+    --ddp_find_unused_parameters "${DDP_FIND_UNUSED_PARAMETERS:-False}" \
     --dataloader_num_workers "${DATALOADER_NUM_WORKERS:-2}" \
     --lm_head_cpu_offload "${LM_HEAD_CPU_OFFLOAD:-False}" \
     --lm_head_cpu_dtype "${LM_HEAD_CPU_DTYPE:-float32}" \
